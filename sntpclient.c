@@ -1,12 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 // #include <sys/socket.h>
 // #include <netinet/in.h>
+#include <unistd.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <errno.h>
+# define NTP_TIMESTAMP_DELTA 2208988800
 
 typedef struct
 {
@@ -34,8 +37,14 @@ typedef struct
 int main(){
 
     struct sockaddr_in target;
+    ntp_packet datagram;
     int conecta;   
+    int n=0, len;
     char target_ip[100];
+    char buffer[2048];
+
+    memset( &datagram, 0, sizeof( ntp_packet ) );
+    *((char *)&datagram + 0) = 0x1b;
 
     printf("Informe o IP de destino:\n");
     scanf("%s", target_ip);
@@ -51,7 +60,23 @@ int main(){
     if (conecta < 0) // Reposta -1 significa que houve erro ao conectar
         perror("ERROR connecting");
     else 
+        printf("sucesso ao conectar-se\n");
+
+    sendto(mysocket, ( char* ) &datagram, sizeof( ntp_packet ),
+        MSG_CONFIRM, (const struct sockaddr *) &target, sizeof(target));
+
+
+    n = recvfrom(mysocket, buffer, 2048,
+                MSG_WAITALL, (struct sockaddr *) &target, &len);
+    if (n < 0){ // Reposta -1 significa que houve erro ao ler a resposta
+        perror("ERROR");
+    }else{
         printf("sucesso\n");
+
+       // datagram.txTm_s = ntohl( datagram.txTm_s );
+       // time_t txTm = ( time_t ) ( datagram.txTm_s - NTP_TIMESTAMP_DELTA );
+       // printf( "Time: %s", ctime( ( const time_t* ) &txTm ) );
+    }
 
     // close(mysocket);
     // close(conecta);
