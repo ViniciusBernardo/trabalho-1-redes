@@ -2,16 +2,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
-// #include <sys/socket.h>
-// #include <netinet/in.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <netdb.h>
 #include <errno.h>
 
-#define NTP_TIMESTAMP_DELTA 2208988800
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <netdb.h>
+
+#define NTP_TIMESTAMP_DELTA 2208988800ull
 #define PORT 123
+#define MAXLENGTH 1024
 
 typedef struct
 {
@@ -40,45 +41,48 @@ int main(){
 
     struct sockaddr_in target;
     ntp_packet datagram;
-    int conecta;   
     int n=0, len = sizeof(target);
     char target_ip[100];
-    char buffer[2048];
 
-    memset( &datagram, 0, sizeof( ntp_packet ) ); // Zera a string de 48 bytes
+    memset(&datagram, 0, sizeof(ntp_packet)); // Zera a string de 48 bytes
     datagram.li_vn_mode = 0x1b; // Seta o primeiro byte para 0x1b
-    // *((char *)&datagram + 0) = 0x1b;
 
     printf("Informe o IP de destino:\n");
     scanf("%s", target_ip);
 
-    int mysocket = socket(AF_INET, SOCK_DGRAM, 0);
+    // Abre e configura o socket
+    int mysocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (mysocket < 0)
+        perror("Erro ao abrir socket");
+
     target.sin_family = AF_INET;
     target.sin_port = htons(PORT);
     target.sin_addr.s_addr = inet_addr(target_ip);
 
-    conecta = connect(mysocket,(struct sockaddr *)&target,sizeof(target));
-    if (conecta < 0) // Reposta -1 significa que houve erro ao conectar
-        perror("ERROR connecting");
-    else 
-        printf("sucesso ao conectar-se\n");
+    // Indica onde os datagramas serão enviados por padrão e o único endereço por
+    // onde serão recebidos
+    n = connect(mysocket,(struct sockaddr *)&target, sizeof(target));
+    if (n < 0) // Reposta -1 significa que houve erro ao conectar
+        perror("Erro ao conectar");
 
-    sendto(mysocket, ( char* ) &datagram, sizeof( ntp_packet ),
+    // Envia a mensagem para a porta indicada
+    n = sendto(mysocket, (char *) &datagram, sizeof(datagram),
         MSG_CONFIRM, (const struct sockaddr *) &target, sizeof(target));
+    if (n < 0)
+        perror("Erro ao enviar resposta");
 
+    // Recebe a resposta
+    n = recvfrom(mysocket, (char *) &datagram, sizeof(datagram),
+        MSG_PEEK, (struct sockaddr *) &target, &len);           
+    if (n < 0)
+        perror("Erro ao ler resposta");
 
-    n = recvfrom(mysocket, (char *) buffer, 1024,
-                MSG_WAITALL, (struct sockaddr *) &target, &len);
-    buffer[n] = '\0';
-    if (n < 0){ // Reposta -1 significa que houve erro ao ler a resposta
-        perror("ERROR");
-    }else{
-        printf("sucesso\n");
+    // Converte o dado do formato big-endian para little-endian
+    datagram.txTm_s = ntohl(datagram.txTm_s);
+    datagram.txTm_f = ntohl(datagram.txTm_f);
 
-       datagram.txTm_s = ntohl( datagram.txTm_s );
-       time_t txTm = ( time_t ) ( datagram.txTm_s - NTP_TIMESTAMP_DELTA );
-       printf( "Time: %s", ctime( ( const time_t* ) &txTm ) );
-    }
+    time_t txTm = (time_t)(datagram.txTm_s - NTP_TIMESTAMP_DELTA);
+    printf("Time: %s", ctime((const time_t*)&txTm));
 
     close(mysocket);
 
