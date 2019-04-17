@@ -12,6 +12,7 @@
 
 #define NTP_TIMESTAMP_DELTA 2208988800ull
 #define PORT 123
+#define BRT -3
 
 typedef struct
 {
@@ -36,6 +37,9 @@ typedef struct
     uint32_t txTm_f;         // 32 bits. Transmit time­stamp fraction of a second.
 } ntp_packet;                // Total: 384 bits or 48 bytes.
 
+char *get_dia_semana(int dia);
+char *get_mes(int mes);
+
 int main(){
 
     struct sockaddr_in target;
@@ -43,6 +47,8 @@ int main(){
     ntp_packet datagram;
     int n=0, len = sizeof(target);
     char target_ip[100];
+    char *dia, *mes;
+
 
     memset(&datagram, 0, sizeof(ntp_packet)); // Zera a string de 48 bytes
     datagram.li_vn_mode = 0x1b; // Seta o primeiro byte para 0x1b
@@ -99,11 +105,67 @@ int main(){
 
     time_t txTm = (time_t)(datagram.txTm_s - NTP_TIMESTAMP_DELTA);
     struct tm * result;
-    result = (struct tm *) gmtime((const time_t *) &txTm);
-
-    printf("Time: %d\n", result->tm_min);
+    result = (struct tm *)gmtime((const time_t *) &txTm);
+    dia = get_dia_semana(result->tm_wday);
+    mes = get_mes(result->tm_mon);
+    printf("Data/hora: %s %s %d %d:%d:%d %d\n", dia, mes, result->tm_mday,
+    result->tm_hour + BRT, result->tm_min, result->tm_sec, result->tm_year+1900);
 
     close(mysocket);
 
     return 0;
+}
+
+char *get_dia_semana(int dia){
+    switch (dia)
+    {
+        case 0:
+            return "Dom";
+        case 1:
+            return "Seg";
+        case 2:
+            return "Ter";
+        case 3:
+            return "Qua";
+        case 4:
+            return "Qui";
+        case 5:
+            return "Sex";
+        case 6:
+            return "Sab";
+        default:
+            return "Dia da semana inexistente";
+    }
+}
+
+char *get_mes(int mes){
+    switch (mes)
+    {
+        case 0:
+            return "Jan";
+        case 1:
+            return "Fev";
+        case 2:
+            return "Mar";
+        case 3:
+            return "Abr";
+        case 4:
+            return "Mai";
+        case 5:
+            return "Jun";
+        case 6:
+            return "Jul";
+        case 7:
+            return "Ago";
+        case 8:
+            return "Set";
+        case 9:
+            return "Out";
+        case 10:
+            return "Nov";
+        case 11:
+            return "Dez";
+        default:
+            return "Mês inexistente";
+    }
 }
