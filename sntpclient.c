@@ -68,6 +68,9 @@ int main(){
         perror("Error");
     }
 
+    // Define que utilizará o protocolo IPv4 da camada de rede,
+    // a porta de comunicação com o servidor,
+    // e o endereço de IP do servidor NTP (fornecido por linha de comando)
     target.sin_family = AF_INET;
     target.sin_port = htons(PORT);
     target.sin_addr.s_addr = inet_addr(target_ip);
@@ -104,12 +107,13 @@ int main(){
     datagram.txTm_f = ntohl(datagram.txTm_f);
 
     time_t txTm = (time_t)(datagram.txTm_s - NTP_TIMESTAMP_DELTA);
-    struct tm * result;
-    result = (struct tm *)gmtime((const time_t *) &txTm);
+    struct tm * result = localtime(&txTm);
     dia = get_dia_semana(result->tm_wday);
     mes = get_mes(result->tm_mon);
+
+
     printf("Data/hora: %s %s %d %d:%d:%d %d\n", dia, mes, result->tm_mday,
-    result->tm_hour + BRT, result->tm_min, result->tm_sec, result->tm_year+1900);
+    result->tm_hour, result->tm_min, result->tm_sec, result->tm_year+1900);
 
     close(mysocket);
 
